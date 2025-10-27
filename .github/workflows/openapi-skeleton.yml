@@ -2,15 +2,22 @@ name: OpenAPI Skeleton
 on:
   workflow_dispatch:
     inputs:
-      issue_key: { description: "Linear key (e.g., FIT-4)", required: true }
-      branch: { description: "Branch (e.g., fit-4-openapi-skeleton)", required: true }
+      issue_key:
+        description: "Linear key (e.g., FIT-4)"
+        required: true
+      branch:
+        description: "Branch (e.g., fit-4-openapi-skeleton)"
+        required: true
 
 jobs:
   gen:
     runs-on: ubuntu-latest
-    permissions: { contents: write, pull-requests: write }
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
+
       - name: Generate openapi.yaml
         run: |
           mkdir -p api
@@ -27,34 +34,59 @@ jobs:
                 type: http
                 scheme: bearer
                 bearerFormat: JWT
-          security: [ { bearerAuth: [] } ]
+          security:
+            - bearerAuth: []
           paths:
             /healthz:
               get:
                 summary: Liveness
-                responses: { "200": { description: OK } }
+                responses:
+                  "200": { description: OK }
             /workouts:
-              get: { summary: List workouts, responses: { "200": { description: OK } } }
+              get:
+                summary: List workouts
+                responses:
+                  "200": { description: OK }
               post:
                 summary: Create workout
-                requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { started_at: { type: string, format: date-time } }, required: [started_at] } } } }
-                responses: { "201": { description: Created } }
+                requestBody:
+                  required: true
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          started_at: { type: string, format: date-time }
+                        required: [ started_at ]
+                responses:
+                  "201": { description: Created }
             /inference:
               post:
                 summary: Submit async inference job
-                responses: { "202": { description: Accepted } }
+                responses:
+                  "202": { description: Accepted }
             /inference/{id}:
               get:
                 summary: Get job status
-                parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
-                responses: { "200": { description: OK } }
+                parameters:
+                  - { name: id, in: path, required: true, schema: { type: string } }
+                responses:
+                  "200": { description: OK }
             /webhooks/{provider}:
               post:
                 summary: Provider webhook
-                parameters: [ { name: provider, in: path, required: true, schema: { type: string } } ]
-                responses: { "204": { description: No Content } }
+                parameters:
+                  - { name: provider, in: path, required: true, schema: { type: string } }
+                responses:
+                  "204": { description: No Content }
           EOF
+
+      - name: Install GitHub CLI
+        run: sudo apt-get update && sudo apt-get install -y gh
+
       - name: Create branch and PR
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -65,4 +97,3 @@ jobs:
           gh pr create --base main --head "${{ github.event.inputs.branch }}" \
             --title "${{ github.event.inputs.issue_key }}: openapi.yaml skeleton" \
             --body "Adds initial OpenAPI spec with auth, workouts, inference, and webhooks."
-        env: { GH_TOKEN: ${{ github.token }} }
