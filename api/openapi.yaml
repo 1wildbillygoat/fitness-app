@@ -1,0 +1,57 @@
+openapi: 3.0.3
+info:
+  title: Fitness App API
+  version: 1.0.0
+servers:
+  - url: https://staging.api.fitness-app.example/v1
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      summary: Liveness
+      responses:
+        "200": { description: OK }
+  /workouts:
+    get:
+      summary: List workouts
+      responses:
+        "200": { description: OK }
+    post:
+      summary: Create workout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                started_at: { type: string, format: date-time }
+              required: [ started_at ]
+      responses:
+        "201": { description: Created }
+  /inference:
+    post:
+      summary: Submit async inference job
+      responses:
+        "202": { description: Accepted }
+  /inference/{id}:
+    get:
+      summary: Get job status
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: OK }
+  /webhooks/{provider}:
+    post:
+      summary: Provider webhook
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: No Content }
