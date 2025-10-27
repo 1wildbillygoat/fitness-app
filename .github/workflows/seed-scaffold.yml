@@ -1,0 +1,88 @@
+name: Seed Scaffold
+on:
+  workflow_dispatch:
+    inputs:
+      issue_key:
+        description: "Linear issue key (e.g., FIT-3)"
+        required: true
+      branch:
+        description: "Branch name (e.g., fit-3-docs-scaffold)"
+        required: true
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add docs scaffold
+        run: |
+          mkdir -p docs .github
+          cat > docs/README.md <<'EOF'
+          # Fitness App Docs
+          - Architecture.md
+          - API.md
+          - DataModel.md
+          - SecurityPrivacy.md
+          - ReleaseManagement.md
+          - Runbooks.md
+          EOF
+
+          cat > docs/Architecture.md <<'EOF'
+          ## System
+          Expo client → API Facade (Cloudflare Worker) → Supabase (Postgres with RLS, Storage, Edge Functions).
+          Environments: dev, staging, prod. EAS channels map 1:1.
+          EOF
+
+          cat > docs/DataModel.md <<'EOF'
+          Tables: profiles, exercises, workouts, workout_sets, meals, meal_items, biometrics, orgs,
+          provider_accounts, provider_tokens, events_inbox, media_assets, ml_models, inference_requests,
+          inference_outputs, foods_ref, consents, audit_log.
+          Indexes: workouts(user_id, started_at), workout_sets(workout_id, set_index), media_assets(user_id, captured_at).
+          RLS: owner-only; provider_tokens deny-by-default; audit_log write-only.
+          EOF
+
+          cat > docs/SecurityPrivacy.md <<'EOF'
+          SOC2/GDPR alignment: PII tags, purpose-bound consents, audit_log, DSR endpoints, retention jobs,
+          backups + restore tests, least-privilege JWT; no service role key in client.
+          EOF
+
+          cat > .github/pull_request_template.md <<'EOF'
+          ## Summary
+          What changed and why.
+
+          ## Linked Linear Issue
+          <!-- Example: FIT-3 -->
+          [Linear Issue](https://linear.app/YOURWORKSPACEKEY/issue/FIT-3)
+
+          ## Testing
+          Steps to verify.
+
+          ## Checklist
+          - [ ] Title starts with Linear key (e.g., FIT-3)
+          - [ ] CI green
+          - [ ] Docs updated if needed
+          EOF
+
+      - name: Create branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${{ github.event.inputs.branch }}"
+          git add -A
+          git commit -m "${{ github.event.inputs.issue_key }} seed docs scaffold"
+          git push origin "${{ github.event.inputs.branch }}"
+
+      - name: Open PR
+        run: |
+          gh pr create \
+            --base main \
+            --head "${{ github.event.inputs.branch }}" \
+            --title "${{ github.event.inputs.issue_key }}: docs scaffold" \
+            --body "Adds initial docs scaffold."
+        env:
+          GH_TOKEN: ${{ github.token }}
