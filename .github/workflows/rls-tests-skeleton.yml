@@ -1,0 +1,131 @@
+name: RLS Tests Skeleton
+on:
+  workflow_dispatch:
+    inputs:
+      issue_key:
+        description: "Linear key (e.g., FIT-17)"
+        required: true
+      branch:
+        description: "Branch (e.g., fit-17-rls-tests-skeleton)"
+        required: true
+
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add RLS tests scaffold
+        run: |
+          mkdir -p supabase/tests/rls .github/workflows
+          cat > supabase/tests/rls/README.md <<'EOF'
+          # RLS Test Suite
+
+          Goal: prove owner-only access on user data and deny cross-user reads/writes.
+
+          ## How these tests work
+          Supabase RLS uses `auth.uid()` which reads from `request.jwt.claims`.
+          We simulate users by setting that value per session:
+
+            select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-000000000001"}', true);
+
+          Then run inserts/selects and assert allowed/denied behavior.
+
+          ## Local execution (psql)
+          Prereqs: a dev DB (Supabase local or cloud) loaded with migrations.
+
+            export PGTEST_URL=postgres://user:pass@host:5432/db
+            psql "$PGTEST_URL" -f supabase/tests/rls/01_profiles_owner.sql
+            psql "$PGTEST_URL" -f supabase/tests/rls/02_workouts_owner.sql
+            psql "$PGTEST_URL" -f supabase/tests/rls/03_cross_user_denied.sql
+
+          ## CI execution
+          Create repo secrets:
+            - PGTEST_URL       : Postgres URL to dev/staging
+          The included workflow `.github/workflows/rls-ci.yml` runs if PGTEST_URL is set.
+          EOF
+
+          cat > supabase/tests/rls/01_profiles_owner.sql <<'EOF'
+          -- User A can insert/select own profile
+          begin;
+          select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001"}', true);
+          insert into profiles(id, display_name) values ('00000000-0000-4000-8000-000000000001','userA') on conflict do nothing;
+          -- expect 1 row
+          select count(*) as own_profile_rows from profiles where id = '00000000-0000-4000-8000-000000000001';
+          rollback;
+          EOF
+
+          cat > supabase/tests/rls/02_workouts_owner.sql <<'EOF'
+          -- User A creates workout, can read it
+          begin;
+          select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001"}', true);
+          insert into workouts(user_id, started_at) values ('00000000-0000-4000-8000-000000000001', now());
+          -- expect >=1 row for user A
+          select count(*) as my_workouts from workouts where user_id = '00000000-0000-4000-8000-000000000001';
+          rollback;
+          EOF
+
+          cat > supabase/tests/rls/03_cross_user_denied.sql <<'EOF'
+          -- User B cannot read User A workouts
+          begin;
+          -- seed as admin context (no RLS) for setup
+          set role postgres; -- if not available, pre-seed via migrations instead
+          insert into workouts(user_id, started_at) values ('00000000-0000-4000-8000-000000000001', now());
+          reset role;
+
+          -- simulate user B
+          select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002"}', true);
+          -- expect 0
+          select count(*) as cross_user_reads from workouts where user_id = '00000000-0000-4000-8000-000000000001';
+          rollback;
+          EOF
+
+          cat > .github/workflows/rls-ci.yml <<'EOF'
+          name: RLS CI
+          on:
+            workflow_dispatch: {}
+            push:
+              paths:
+                - "supabase/migrations/**"
+                - "supabase/tests/**"
+            pull_request:
+              paths:
+                - "supabase/migrations/**"
+                - "supabase/tests/**"
+          jobs:
+            run:
+              if: ${{ secrets.PGTEST_URL != '' }}
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - name: Install Postgres client
+                  run: sudo apt-get update && sudo apt-get install -y postgresql-client
+                - name: Run RLS tests
+                  env:
+                    PGTEST_URL: ${{ secrets.PGTEST_URL }}
+                  run: |
+                    set -e
+                    psql "$PGTEST_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls/01_profiles_owner.sql
+                    psql "$PGTEST_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls/02_workouts_owner.sql
+                    psql "$PGTEST_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls/03_cross_user_denied.sql
+          EOF
+
+      - name: Install GitHub CLI
+        run: sudo apt-get update && sudo apt-get install -y gh
+
+      - name: Commit and open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${{ github.event.inputs.branch }}"
+          git add -A
+          git commit -m "${{ github.event.inputs.issue_key }} add RLS test suite skeleton"
+          git push origin "${{ github.event.inputs.branch }}"
+          gh pr create --base main --head "${{ github.event.inputs.branch }}" \
+            --title "${{ github.event.inputs.issue_key }}: RLS test suite skeleton" \
+            --body "Adds SQL-based RLS tests, README, and optional CI runner gated by PGTEST_URL."
