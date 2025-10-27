@@ -2,13 +2,19 @@ name: Worker Skeleton
 on:
   workflow_dispatch:
     inputs:
-      issue_key: { description: "Linear key (e.g., FIT-18)", required: true }
-      branch:    { description: "Branch (e.g., fit-18-worker-skeleton)", required: true }
+      issue_key:
+        description: "Linear key (e.g., FIT-18)"
+        required: true
+      branch:
+        description: "Branch (e.g., fit-18-worker-skeleton)"
+        required: true
 
 jobs:
   gen:
     runs-on: ubuntu-latest
-    permissions: { contents: write, pull-requests: write }
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -27,7 +33,6 @@ jobs:
             const body = await c.req.json().catch(() => ({}))
             const parsed = Workout.safeParse(body)
             if (!parsed.success) return c.json({ error: 'invalid_body' }, 400)
-            // TODO: call Supabase with service role (server-side only)
             return c.json({ id: 1, ...parsed.data }, 201)
           })
 
@@ -51,15 +56,16 @@ jobs:
 
           cat > api-facade/README.md <<'EOF'
           # API Facade (Cloudflare Worker)
-          - Endpoints: /v1/healthz, /v1/workouts (POST), /v1/inference (POST/GET)
-          - Add JWT auth, rate limits, HMAC webhook verification next.
+          Endpoints: /v1/healthz, /v1/workouts (POST), /v1/inference (POST/GET).
+          Add JWT auth, rate limits, and HMAC webhook verification next.
           EOF
 
       - name: Install GitHub CLI
         run: sudo apt-get update && sudo apt-get install -y gh
 
       - name: Commit and open PR
-        env: { GH_TOKEN: ${{ github.token }} }
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
