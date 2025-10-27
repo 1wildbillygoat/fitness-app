@@ -1,0 +1,24 @@
+name: RLS CI
+on:
+  workflow_dispatch: {}
+  push:
+    paths: [ "supabase/migrations/**", "supabase/tests/**" ]
+  pull_request:
+    paths: [ "supabase/migrations/**", "supabase/tests/**" ]
+
+jobs:
+  run:
+    if: ${{ secrets.PGTEST_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Run RLS tests
+        env:
+          PGTEST_URL: ${{ secrets.PGTEST_URL }}
+        run: |
+          set -e
+          psql "$PGTEST_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls/01_profiles_owner.sql
+          psql "$PGTEST_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls/02_workouts_owner.sql
+          psql "$PGTEST_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls/03_cross_user_denied.sql
