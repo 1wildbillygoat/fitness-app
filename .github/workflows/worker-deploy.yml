@@ -1,33 +1,15 @@
 name: Worker Deploy
 on:
-  workflow_dispatch:
-    inputs:
-      env:
-        description: "Worker name (e.g., fitness-api-staging)"
-        required: true
-        default: "fitness-api-staging"
-
+  workflow_dispatch: {}
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Node + Wrangler
-        uses: actions/setup-node@v4
+      - name: Deploy with Wrangler
+        uses: cloudflare/wrangler-action@v3
         with:
-          node-version: 20
-      - run: npm i -g wrangler@3
-
-      - name: Show Wrangler info
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          wrangler --version
-          wrangler whoami || true
-
-      - name: Deploy Worker
-        working-directory: api-facade
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: wrangler deploy --name "${{ github.event.inputs.env }}" --verbose
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: api-facade
+          command: deploy
