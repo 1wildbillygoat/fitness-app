@@ -1,10 +1,9 @@
 name: Worker Deploy
-
 on:
   workflow_dispatch:
     inputs:
       env:
-        description: "Deployment environment (e.g. fitness-api-staging)"
+        description: "Worker name (e.g., fitness-api-staging)"
         required: true
         default: "fitness-api-staging"
 
@@ -12,21 +11,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Deploy with Wrangler Action
+        uses: cloudflare/wrangler-action@v3
         with:
-          node-version: 20
-
-      - name: Install Wrangler
-        run: npm install -g wrangler
-
-      - name: Publish Cloudflare Worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          cd api-facade
-          wrangler publish --name ${{ github.event.inputs.env }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: api-facade
+          command: deploy --name "${{ github.event.inputs.env }}"
