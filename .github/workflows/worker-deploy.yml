@@ -1,6 +1,6 @@
 name: Worker Deploy
-on:
-  workflow_dispatch: {}
+on: { workflow_dispatch: {} }
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -11,17 +11,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          cache-dependency-path: api-facade/package-lock.json
 
       - name: Install deps (api-facade)
         working-directory: api-facade
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci --omit=dev
-          else
-            npm i --omit=dev
-          fi
+        run: npm i --omit=dev
 
       - name: Deploy with Wrangler
         uses: cloudflare/wrangler-action@v3
