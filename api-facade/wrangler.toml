@@ -1,4 +1,4 @@
-name = "fitness-api-staging"   # this is overridden by --name at deploy
-main = "api-facade/worker.ts"
+name = "fitness-api-staging"
+main = "worker.ts"                 # relative to this toml's folder
 account_id = "66a15c35faa3a6bbbcf8d1b341800525"
 compatibility_date = "2025-10-27"
