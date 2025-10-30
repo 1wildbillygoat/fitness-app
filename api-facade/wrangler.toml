@@ -1,7 +1,4 @@
-name = "fitness-api-staging"
+name = "fitness-api-staging"   # this is overridden by --name at deploy
 main = "api-facade/worker.ts"
-account_id = "<66a15c35faa3a6bbbcf8d1b341800525>"
+account_id = "<YOUR_ACCOUNT_ID>"
 compatibility_date = "2025-10-27"
-
-[vars]
-# Runtime configuration variables can be added here later
